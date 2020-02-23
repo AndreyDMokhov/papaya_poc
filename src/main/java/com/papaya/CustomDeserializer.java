@@ -12,6 +12,7 @@ import lombok.SneakyThrows;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -42,9 +43,14 @@ public class CustomDeserializer<T> extends StdDeserializer<T> {
             Map.Entry<String, JsonNode> jsonField = fieldsIterator.next();
             String key = jsonField.getKey();
 
-            try {
-                clazz.getDeclaredField(key);
-            } catch (NoSuchFieldException e) {
+            if (Arrays.stream(clazz.getDeclaredFields()).anyMatch(field -> field.getName().equals(key))) {
+                Field field = clazz.getDeclaredField(key);
+                if (field != null) {
+                    field.setAccessible(true);
+
+                    field.set(instance,  getValueByType(jsonField) );
+                }
+            } else {
                 if(jsonField.getValue().isObject()){
                     formField.put(jsonField.getKey(), FieldValue.builder()
                             .fieldTemplate(FieldTemplate.builder()
@@ -56,13 +62,6 @@ public class CustomDeserializer<T> extends StdDeserializer<T> {
                 } else {
                     formField.put(key, dynamicSimpleField(key, jsonField));
                 }
-                 continue;
-            }
-            Field field = clazz.getDeclaredField(key);
-            if (field != null) {
-                field.setAccessible(true);
-
-                field.set(instance,  getValueByType(jsonField) );
             }
         }
         Field formFields = clazz.getDeclaredField("formFields");
