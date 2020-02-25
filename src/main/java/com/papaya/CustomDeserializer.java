@@ -4,12 +4,17 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.papaya.model.FieldTemplate;
 import com.papaya.model.FieldValue;
 import com.papaya.model.SupplementaryWorkerInformation;
 import lombok.SneakyThrows;
+import org.everit.json.schema.Schema;
+import org.everit.json.schema.ValidationException;
+import org.everit.json.schema.loader.SchemaLoader;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -21,6 +26,8 @@ public class CustomDeserializer<T> extends StdDeserializer<T> {
 
     private Map<Class, Set<String>> class2fieldNames = Map.of(
             SupplementaryWorkerInformation.class, (Arrays.stream(SupplementaryWorkerInformation.class.getDeclaredFields()).map(Field::getName).collect(toSet())));
+
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     public CustomDeserializer() {
         this(null);
@@ -34,6 +41,8 @@ public class CustomDeserializer<T> extends StdDeserializer<T> {
     @Override
     public T deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         JsonNode jsonNode = p.getCodec().readTree(p);
+
+        validation(jsonNode);
 
         Object instance = super._valueClass.getConstructor().newInstance();
         Class<?> clazz = super._valueClass;
@@ -138,5 +147,20 @@ public class CustomDeserializer<T> extends StdDeserializer<T> {
             }
         }
         return jsonNode.getNodeType().name();
+    }
+
+    private void validation(JsonNode jsonNode) throws JsonProcessingException {
+
+        JSONObject jsonSchema = new JSONObject(SupplementaryWorkerInformationRepository.getJsonSchema());
+        String json = objectMapper.writeValueAsString(jsonNode);
+        JSONObject jsonObject = new JSONObject(json);
+
+        Schema schema = SchemaLoader.load(jsonSchema);
+
+        try {
+            schema.validate(jsonObject);
+        } catch (ValidationException e) {
+            e.printStackTrace();
+        }
     }
 }

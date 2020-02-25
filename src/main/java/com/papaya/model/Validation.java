@@ -10,4 +10,5 @@ public class Validation {
 
     private Set<String> validationRules;
     private boolean required;
+
 }

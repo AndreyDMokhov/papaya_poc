@@ -1,20 +1,30 @@
 package com.papaya;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.io.SegmentedStringWriter;
 import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.papaya.model.FieldValue;
 import lombok.SneakyThrows;
+import netscape.javascript.JSObject;
+import org.everit.json.schema.Schema;
+import org.everit.json.schema.loader.SchemaLoader;
+import org.json.JSONObject;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 
 public class CustomSerializer<T> extends StdSerializer<T> {
 
-   public CustomSerializer() {
+    ObjectMapper mapper = new ObjectMapper();
+
+    public CustomSerializer() {
         this(null);
     }
 
@@ -25,30 +35,45 @@ public class CustomSerializer<T> extends StdSerializer<T> {
     @SneakyThrows
     public void serialize(Object value, JsonGenerator gen, SerializerProvider provider) throws IOException {
 
-        Map<String, JsonSerializer<?>> numberSerializers = new HashMap<>();
+        gen.getOutputContext().typeDesc();
 
         gen.writeStartObject();
 
         Field[] fields = value.getClass().getDeclaredFields();
         for (Field field : fields) {
             field.setAccessible(true);
-            if(field.get(value) != null && Map.class.isAssignableFrom(field.getType())) {
-                writeDynamicValue((Map<String, FieldValue>) field.get(value),gen);
-            } else if(field.get(value) != null) {
+            if (field.get(value) != null && Map.class.isAssignableFrom(field.getType())) {
+                writeDynamicValue((Map<String, FieldValue>) field.get(value), gen);
+            } else if (field.get(value) != null) {
                 writeSimpleValue(field, value, gen);
             }
         }
         gen.writeEndObject();
+        validation(gen);
     }
 
-    private void writeSimpleValue(Field field, Object value, JsonGenerator gen ) throws IOException, IllegalAccessException {
+    private void validation(JsonGenerator gen) throws NoSuchFieldException, IllegalAccessException {
+
+        JSONObject jsonSchema = new JSONObject(SupplementaryWorkerInformationRepository.getJsonSchema());
+        JSONObject jsonObject = new JSONObject(getJsonFromGenerator(gen));
+        Schema schema = SchemaLoader.load(jsonSchema);
+        schema.validate(jsonObject);
+    }
+
+    private String getJsonFromGenerator(JsonGenerator gen) throws NoSuchFieldException, IllegalAccessException {
+        Field writerField = gen.getClass().getDeclaredField("_outputBuffer");
+        writerField.setAccessible(true);
+        return String.valueOf((char[]) writerField.get(gen));
+    }
+
+    private void writeSimpleValue(Field field, Object value, JsonGenerator gen) throws IOException, IllegalAccessException {
 
 
-           if(field.getType() == Boolean.TYPE || field.getType() == Boolean.class) {
-               gen.writeBooleanField(field.getName(), field.getBoolean(value));
-           } else if(field.getType() == Character.TYPE || field.getType() == Character.class) {
-               gen.writeStringField(field.getName(), String.valueOf(field.getChar(value)));
-           } else if(field.getType() == Byte.TYPE || field.getType() == Byte.class) {
+        if (field.getType() == Boolean.TYPE || field.getType() == Boolean.class) {
+            gen.writeBooleanField(field.getName(), field.getBoolean(value));
+        } else if (field.getType() == Character.TYPE || field.getType() == Character.class) {
+            gen.writeStringField(field.getName(), String.valueOf(field.getChar(value)));
+        } else if (field.getType() == Byte.TYPE || field.getType() == Byte.class) {
                gen.writeNumberField(field.getName(), field.getByte(value));
            }  else if(field.getType() == Short.TYPE || field.getType() == Short.class) {
                gen.writeNumberField(field.getName(), field.getShort(value));
@@ -96,7 +121,6 @@ public class CustomSerializer<T> extends StdSerializer<T> {
             gen.writeBooleanField(fieldValue.getFieldTemplate().getLabel(), Boolean.parseBoolean(fieldValue.getValue()));
         } else {
             gen.writeStringField(fieldValue.getFieldTemplate().getLabel(), fieldValue.getValue());
-
         }
 
     }
