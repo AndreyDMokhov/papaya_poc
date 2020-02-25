@@ -13,8 +13,8 @@ import java.util.Map;
 @AllArgsConstructor
 @Data
 @Builder
-
 public class FieldValue {
+    private String name;
     private String value;
     private Map<String, FieldValue> nestedFields;
     private FieldTemplate fieldTemplate;

@@ -20,8 +20,7 @@ public class SerializationSchemaService {
     public  JsonSchema getJsonSchema(Class clazz) throws IOException {
 
         JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(mapper);
-        JsonSchema schema = schemaGen.generateSchema(mapper.constructType(clazz));
-        return schema;
+        return schemaGen.generateSchema(mapper.constructType(clazz));
     }
 
     public static void main(String[] args) throws IOException {
@@ -30,11 +29,6 @@ public class SerializationSchemaService {
         FormTemplate formTemplate = schemaService.createFormTemplate();
 
         Map<String, FieldTemplate> formFieldsTemplates = formTemplate.getFormFieldsTemplates();
-
-
-
-      //  System.out.println(mapper.writeValueAsString(schemaService.getJsonSchema(FormTemplate.class)));
-
 
     }
 
@@ -50,18 +44,6 @@ public class SerializationSchemaService {
 
         return FormTemplate.builder().name("Name").description("Description").formFieldsTemplates(fieldTemplateHashMap).build();
 
-    }
-
-
-    private void checkField(Map<String, FieldTemplate> formFieldsTemplates) {
-        for (Map.Entry<String, FieldTemplate> fieldTemplateEntry : formFieldsTemplates.entrySet()) {
-            if (fieldTemplateEntry instanceof Map) {
-                checkField(formFieldsTemplates);
-            } else {
-
-            }
-
-        }
     }
 
 }

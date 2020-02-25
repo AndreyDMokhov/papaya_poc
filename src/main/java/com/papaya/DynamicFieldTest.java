@@ -38,6 +38,7 @@ public class DynamicFieldTest {
                 .firstName("Moshe")
                 .lastName("Ivanov")
                 .homeAddress("Harish")
+                .primaryEmail("info@papaya.com")
                 .workTime(8)
                 .resident(true)
                 .formFields(createDynamicField())

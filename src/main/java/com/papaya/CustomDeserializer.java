@@ -8,16 +8,19 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.papaya.model.FieldTemplate;
 import com.papaya.model.FieldValue;
+import com.papaya.model.SupplementaryWorkerInformation;
 import lombok.SneakyThrows;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
+
+import static java.util.stream.Collectors.toSet;
 
 public class CustomDeserializer<T> extends StdDeserializer<T> {
+
+    private Map<Class, Set<String>> class2fieldNames = Map.of(
+            SupplementaryWorkerInformation.class, (Arrays.stream(SupplementaryWorkerInformation.class.getDeclaredFields()).map(Field::getName).collect(toSet())));
 
     public CustomDeserializer() {
         this(null);
@@ -29,34 +32,34 @@ public class CustomDeserializer<T> extends StdDeserializer<T> {
 
     @SneakyThrows
     @Override
-    public T deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
+    public T deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         JsonNode jsonNode = p.getCodec().readTree(p);
 
         Object instance = super._valueClass.getConstructor().newInstance();
         Class<?> clazz = super._valueClass;
 
-        Map<String, FieldValue> formField = new HashMap<>();       //create map entry for dynamic fields
+        Map<String, FieldValue> formField = new HashMap<>();
 
         Iterator<Map.Entry<String, JsonNode>> fieldsIterator = jsonNode.fields();
+
 
         while (fieldsIterator.hasNext()) {
             Map.Entry<String, JsonNode> jsonField = fieldsIterator.next();
             String key = jsonField.getKey();
 
-            if (Arrays.stream(clazz.getDeclaredFields()).anyMatch(field -> field.getName().equals(key))) {
+            if (class2fieldNames.get(clazz).contains(key)) {
                 Field field = clazz.getDeclaredField(key);
-                if (field != null) {
-                    field.setAccessible(true);
+                field.setAccessible(true);
+                field.set(instance, getValueByType(jsonField));
 
-                    field.set(instance,  getValueByType(jsonField) );
-                }
             } else {
-                if(jsonField.getValue().isObject()){
+                if (jsonField.getValue().isObject()) {
                     formField.put(jsonField.getKey(), FieldValue.builder()
                             .fieldTemplate(FieldTemplate.builder()
                                     .type(JavaTypes.OBJECT.getJavaScriptName())
                                     .label(jsonField.getKey())
                                     .build())
+                            .name(jsonField.getKey())
                             .nestedFields(dynamicObjectFieldHandler(jsonField.getValue().fields(), key))
                             .build());
                 } else {
@@ -73,13 +76,13 @@ public class CustomDeserializer<T> extends StdDeserializer<T> {
 
     private Object getValueByType(Map.Entry<String, JsonNode> jsonField) {
         JsonNode jsonNode = jsonField.getValue();
-        if(jsonNode.isShort()) {
+        if (jsonNode.isShort()) {
             return jsonNode.asInt();
-        } else if(jsonNode.isInt()) {
-              return jsonNode.asInt();
-        } else if(jsonNode.isLong()) {
-              return jsonNode.asLong();
-        } else if(jsonNode.isDouble()) {
+        } else if (jsonNode.isInt()) {
+            return jsonNode.asInt();
+        } else if (jsonNode.isLong()) {
+            return jsonNode.asLong();
+        } else if (jsonNode.isDouble()) {
             return jsonNode.asDouble();
         } else if (jsonNode.isFloat()) {
             return jsonNode.isFloat();
@@ -94,13 +97,14 @@ public class CustomDeserializer<T> extends StdDeserializer<T> {
 
         while (jsonField.hasNext()) {
             Map.Entry<String, JsonNode> nextField = jsonField.next();
-            if(nextField.getValue().isObject()) {
+            if (nextField.getValue().isObject()) {
 
-                fieldValueMap.put(key, FieldValue.builder()
+                fieldValueMap.put(nextField.getKey(), FieldValue.builder()
                         .fieldTemplate(FieldTemplate.builder()
                                 .type(JavaTypes.OBJECT.getJavaScriptName())
                                 .label(nextField.getKey())
                                 .build())
+                        .name(nextField.getKey())
                         .nestedFields(dynamicObjectFieldHandler(nextField.getValue().fields(), nextField.getKey()))
                         .build());
             } else {
@@ -116,19 +120,20 @@ public class CustomDeserializer<T> extends StdDeserializer<T> {
                         .label(key)
                         .type(getNodeType(jsonField.getValue()))
                         .build())
+                .name(key)
                 .value(String.valueOf(getValueByType(jsonField)))
                 .build();
     }
 
     private String getNodeType(JsonNode jsonNode) {
 
-        if(jsonNode.getNodeType().equals(JsonNodeType.NUMBER)){
+        if (jsonNode.getNodeType().equals(JsonNodeType.NUMBER)) {
             JsonParser.NumberType numberType = jsonNode.numberType();
-            if(numberType == JsonParser.NumberType.INT) {
+            if (numberType == JsonParser.NumberType.INT) {
                 return JavaTypes.INTEGER.getJavaScriptName();
             } else if (numberType == JsonParser.NumberType.LONG) {
                 return JavaTypes.LONG.getJavaScriptName();
-        } else if (numberType == JsonParser.NumberType.DOUBLE) {
+            } else if (numberType == JsonParser.NumberType.DOUBLE) {
                 return JavaTypes.DOUBLE.getJavaScriptName();
             }
         }

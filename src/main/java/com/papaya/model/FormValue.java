@@ -12,6 +12,6 @@ import java.util.Map;
 @Data
 @Builder
 public class FormValue {
-    private FormTemplate formTemplate;
+
     private Map<String, FieldValue> fieldsValues;
 }

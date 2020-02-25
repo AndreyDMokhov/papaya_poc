@@ -38,7 +38,6 @@ public class CustomSerializer<T> extends StdSerializer<T> {
                 writeSimpleValue(field, value, gen);
             }
         }
-
         gen.writeEndObject();
     }
 
