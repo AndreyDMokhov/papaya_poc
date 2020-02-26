@@ -11,6 +11,7 @@ import com.papaya.model.FieldValue;
 import lombok.SneakyThrows;
 import netscape.javascript.JSObject;
 import org.everit.json.schema.Schema;
+import org.everit.json.schema.ValidationException;
 import org.everit.json.schema.loader.SchemaLoader;
 import org.json.JSONObject;
 
@@ -57,7 +58,11 @@ public class CustomSerializer<T> extends StdSerializer<T> {
         JSONObject jsonSchema = new JSONObject(SupplementaryWorkerInformationRepository.getJsonSchema());
         JSONObject jsonObject = new JSONObject(getJsonFromGenerator(gen));
         Schema schema = SchemaLoader.load(jsonSchema);
-        schema.validate(jsonObject);
+        try {
+            schema.validate(jsonObject);
+        } catch (ValidationException e) {
+            e.printStackTrace();
+        }
     }
 
     private String getJsonFromGenerator(JsonGenerator gen) throws NoSuchFieldException, IllegalAccessException {
